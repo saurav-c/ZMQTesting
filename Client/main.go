@@ -70,17 +70,17 @@ func main() {
 
 func simpleClient(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP string) {
 	start := time.Now()
-	pusher.Send("hello", zmq.DONTWAIT)
-	data, _ := puller.Recv(0)
+	pusher.SendBytes([]byte("hello"), zmq.DONTWAIT)
+	data, _ := puller.RecvBytes(0)
 	end := time.Now()
-	fmt.Printf("Round Trip: %f\n", end.Sub(start).Seconds())
-	fmt.Println(data)
+	fmt.Printf("Round Trip: %f ms\n", 1000 * end.Sub(start).Seconds())
+	fmt.Println(string(data))
 }
 
 func varySize(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP string) {
 	for i := 1; i <= 20; i++ {
 		size := math.Pow(2, float64(i))
-		data := make([]byte, size)
+		data := make([]byte, int(size))
 		rand.Read(data)
 
 		start := time.Now()
@@ -88,7 +88,7 @@ func varySize(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP
 		data, _ = puller.RecvBytes(0)
 		end := time.Now()
 
-		fmt.Printf("Round Trip for Size %f: %f\n", size, end.Sub(start).Seconds())
+		fmt.Printf("Round Trip for Size %f: %f ms\n", size, 1000 * end.Sub(start).Seconds())
 	}
 
 }

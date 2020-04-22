@@ -51,7 +51,7 @@ func main() {
 			switch s := socket.Socket; s {
 			case puller:
 				{
-					data, _ := puller.Recv(zmq.DONTWAIT)
+					data, _ := puller.RecvBytes(zmq.DONTWAIT)
 					go handleData(data, clientIP, ctx)
 				}
 			}
@@ -59,10 +59,8 @@ func main() {
 	}
 }
 
-func handleData(data string, clientIP string, ctx *zmq.Context) {
+func handleData(data []byte, clientIP string, ctx *zmq.Context) {
 	start := time.Now()
-	fmt.Println(string(data))
-	s := "world"
 
 	t1 := time.Now()
 	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
@@ -70,7 +68,7 @@ func handleData(data string, clientIP string, ctx *zmq.Context) {
 	fmt.Printf("Socket Creation: %f\n", t2.Sub(t1).Seconds())
 	defer pusher.Close()
 
-	pusher.Send(s, zmq.DONTWAIT)
+	pusher.SendBytes(data, zmq.DONTWAIT)
 	end := time.Now()
 	fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
 }

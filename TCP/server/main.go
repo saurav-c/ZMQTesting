@@ -2,7 +2,6 @@ package server
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 )
 func main() {
@@ -11,9 +10,7 @@ func main() {
 	defer ln.Close()
 
 	for {
-		message, _ := bufio.NewReader(conn).ReadString('\n')
-		fmt.Println(message)
-		conn.Write([]byte("world" + "\n"))
+		message, _ := bufio.NewReader(conn).ReadBytes('\n')
+		conn.Write(append(message, '\n'))
 	}
-
 }
