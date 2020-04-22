@@ -41,9 +41,14 @@ func main() {
 
 	start := time.Now()
 	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, serverIP, 5000), false)
-	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 6000), true)
 	end := time.Now()
-	fmt.Printf("Socket Creation Time: %f\n", end.Sub(start).Seconds())
+	fmt.Printf("Push Socket Creation Time: %f\n", end.Sub(start).Seconds())
+
+	start = time.Now()
+	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 6000), true)
+	end = time.Now()
+	fmt.Printf("Pull Socket Creation Time: %f\n", end.Sub(start).Seconds())
+
 
 	defer pusher.Close()
 	defer puller.Close()
