@@ -5,6 +5,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 	"log"
 	"os"
+	"time"
 )
 
 const (
@@ -59,11 +60,17 @@ func main() {
 }
 
 func handleData(data string, clientIP string, ctx *zmq.Context) {
+	start := time.Now()
 	fmt.Println(string(data))
 	s := "world"
 
+	t1 := time.Now()
 	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
+	t2 := time.Now()
+	fmt.Printf("Socket Creation: %f\n", t2.Sub(t1).Seconds())
 	defer pusher.Close()
 
 	pusher.Send(s, zmq.DONTWAIT)
+	end := time.Now()
+	fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
 }
