@@ -4,6 +4,8 @@ import (
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
 	"log"
+	"math"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -33,6 +35,7 @@ func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) 
 
 func main() {
 	serverIP := os.Args[1]
+	mode := os.Args[2]
 
 	ctx, err := zmq.NewContext()
 	if err != nil {
@@ -53,12 +56,39 @@ func main() {
 	defer pusher.Close()
 	defer puller.Close()
 
-	start = time.Now()
+	switch mode {
+	case "simple":
+		{
+			simpleClient(ctx, pusher, puller, serverIP)
+		}
+	case "size":
+		{
+			varySize(ctx, pusher, puller, serverIP)
+		}
+	}
+}
+
+func simpleClient(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP string) {
+	start := time.Now()
 	pusher.Send("hello", zmq.DONTWAIT)
 	data, _ := puller.Recv(0)
-	end = time.Now()
+	end := time.Now()
 	fmt.Printf("Round Trip: %f\n", end.Sub(start).Seconds())
-
 	fmt.Println(data)
+}
+
+func varySize(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP string) {
+	for i := 1; i <= 20; i++ {
+		size := math.Pow(2, float64(i))
+		data := make([]byte, size)
+		rand.Read(data)
+
+		start := time.Now()
+		pusher.SendBytes(data, zmq.DONTWAIT)
+		data, _ = puller.RecvBytes(0)
+		end := time.Now()
+
+		fmt.Printf("Round Trip for Size %f: %f\n", size, end.Sub(start).Seconds())
+	}
 
 }
