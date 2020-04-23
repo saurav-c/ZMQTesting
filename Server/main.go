@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
 	"log"
@@ -34,6 +35,11 @@ func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) 
 func main() {
 
 	clientIP := os.Args[1]
+	persistent := *flag.Bool("mode", false, "Whether to have sockets for entire duration.")
+	if persistent {
+		peristentConn(clientIP)
+		return
+	}
 
 	ctx, err := zmq.NewContext()
 	if err != nil {
@@ -71,4 +77,34 @@ func handleData(data []byte, clientIP string, ctx *zmq.Context) {
 	pusher.SendBytes(data, zmq.DONTWAIT)
 	end := time.Now()
 	fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
+}
+
+func peristentConn(clientIP string) {
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Fatalf("Error creating ZMQ context")
+	}
+
+	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 5000), true)
+	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
+	poller := zmq.NewPoller()
+	poller.Add(puller, zmq.POLLIN)
+
+	for true {
+		sockets, _ := poller.Poll(0)
+
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+			case puller:
+				{
+					data, _ := puller.RecvBytes(zmq.DONTWAIT)
+					go handle(data, pusher)
+				}
+			}
+		}
+	}
+}
+
+func handle(data []byte, pusher *zmq.Socket) {
+	pusher.SendBytes(data, zmq.DONTWAIT)
 }
