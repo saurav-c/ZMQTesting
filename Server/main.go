@@ -37,11 +37,13 @@ func main() {
 	mode := os.Args[2]
 
 	if mode == "pers" {
-		peristentConn(clientIP)
+		persistent(clientIP)
 		return
 	} else if mode == "rr" {
 		reqAndRep()
 		return
+	} else if mode == "persRR" {
+		persistentRR(clientIP)
 	}
 
 	ctx, err := zmq.NewContext()
@@ -82,7 +84,7 @@ func handleData(data []byte, clientIP string, ctx *zmq.Context) {
 	fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
 }
 
-func peristentConn(clientIP string) {
+func persistent(clientIP string) {
 	ctx, err := zmq.NewContext()
 	if err != nil {
 		log.Fatalf("Error creating ZMQ context")
@@ -102,6 +104,31 @@ func peristentConn(clientIP string) {
 				{
 					data, _ := puller.RecvBytes(zmq.DONTWAIT)
 					go handle(data, pusher)
+				}
+			}
+		}
+	}
+}
+
+func persistentRR(clientIP string) {
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Fatalf("Error creating ZMQ context")
+	}
+
+	rep := createSocket(zmq.REP, ctx, fmt.Sprintf(PullTemplate, 5000), true)
+	poller := zmq.NewPoller()
+	poller.Add(rep, zmq.POLLIN)
+
+	for true {
+		sockets, _ := poller.Poll(0)
+
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+			case rep:
+				{
+					data, _ := rep.RecvBytes(zmq.DONTWAIT)
+					rep.SendBytes(data, zmq.DONTWAIT)
 				}
 			}
 		}
