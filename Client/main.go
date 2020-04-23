@@ -37,6 +37,11 @@ func main() {
 	serverIP := os.Args[1]
 	mode := os.Args[2]
 
+	if mode == "rr" {
+		reqAndRep(serverIP)
+		return
+	}
+
 	ctx, err := zmq.NewContext()
 	if err != nil {
 		log.Fatalf("Error creating ZMQ context")
@@ -91,5 +96,23 @@ func varySize(ctx *zmq.Context, pusher *zmq.Socket, puller *zmq.Socket, serverIP
 
 		fmt.Printf("Round Trip for Size %f: %f ms\n", size, 1000 * end.Sub(start).Seconds())
 	}
+}
 
+func reqAndRep(serverIP string) {
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Fatalf("Error creating ZMQ context")
+	}
+	req, _ := ctx.NewSocket(zmq.REQ)
+	req.Connect(fmt.Sprintf(PushTemplate, serverIP, 5000))
+	data := make([]byte, 512)
+	rand.Read(data)
+
+	for i := 0; i < 20; i++ {
+		start := time.Now()
+		req.SendBytes(data, zmq.DONTWAIT)
+		req.RecvBytes(0)
+		end := time.Now()
+		fmt.Printf("Round Trip Time: %f ms\n", 1000 * end.Sub(start).Seconds())
+	}
 }

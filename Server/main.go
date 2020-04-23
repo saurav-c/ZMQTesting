@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
 	"log"
@@ -35,9 +34,13 @@ func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) 
 func main() {
 
 	clientIP := os.Args[1]
-	persistent := *flag.Bool("mode", false, "Whether to have sockets for entire duration.")
-	if persistent {
+	mode := os.Args[2]
+
+	if mode == "pers" {
 		peristentConn(clientIP)
+		return
+	} else if mode == "rr" {
+		reqAndRep()
 		return
 	}
 
@@ -107,4 +110,18 @@ func peristentConn(clientIP string) {
 
 func handle(data []byte, pusher *zmq.Socket) {
 	pusher.SendBytes(data, zmq.DONTWAIT)
+}
+
+func reqAndRep() {
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Fatalf("Error creating ZMQ context")
+	}
+	rep, _ := ctx.NewSocket(zmq.REP)
+	rep.Connect(fmt.Sprintf(PullTemplate, 5000))
+
+	for {
+		data, _ := rep.RecvBytes(0)
+		rep.SendBytes(data, zmq.DONTWAIT)
+	}
 }
