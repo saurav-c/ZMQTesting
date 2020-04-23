@@ -103,7 +103,7 @@ func persistent(clientIP string) {
 			case puller:
 				{
 					data, _ := puller.RecvBytes(zmq.DONTWAIT)
-					go handle(data, pusher)
+					pusher.SendBytes(data, zmq.DONTWAIT)
 				}
 			}
 		}
