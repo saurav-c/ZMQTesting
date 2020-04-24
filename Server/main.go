@@ -52,6 +52,7 @@ func main() {
 	}
 
 	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 5000), true)
+	defer puller.Close()
 	poller := zmq.NewPoller()
 	poller.Add(puller, zmq.POLLIN)
 
@@ -94,6 +95,8 @@ func persistent(clientIP string) {
 	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
 	poller := zmq.NewPoller()
 	poller.Add(puller, zmq.POLLIN)
+	defer puller.Close()
+	defer pusher.Close()
 
 	for true {
 		sockets, _ := poller.Poll(0)
@@ -117,6 +120,7 @@ func persistentRR(clientIP string) {
 	}
 
 	rep := createSocket(zmq.REP, ctx, fmt.Sprintf(PullTemplate, 5000), true)
+	defer rep.Close()
 	poller := zmq.NewPoller()
 	poller.Add(rep, zmq.POLLIN)
 
@@ -146,6 +150,7 @@ func reqAndRep() {
 	}
 	rep, _ := ctx.NewSocket(zmq.REP)
 	rep.Connect(fmt.Sprintf(PullTemplate, 5000))
+	defer rep.Close()
 
 	for {
 		data, _ := rep.RecvBytes(0)

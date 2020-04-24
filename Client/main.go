@@ -104,6 +104,7 @@ func reqAndRep(serverIP string) {
 		log.Fatalf("Error creating ZMQ context")
 	}
 	req, _ := ctx.NewSocket(zmq.REQ)
+	defer req.Close()
 	req.Connect(fmt.Sprintf(PushTemplate, serverIP, 5000))
 	data := make([]byte, 512)
 	rand.Read(data)
