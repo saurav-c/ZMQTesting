@@ -21,12 +21,13 @@ type PusherCache struct {
 }
 
 func (cache *PusherCache) getPusher(address string, ctx *zmq.Context) (*zmq.Socket) {
-	var pusher *zmq.Socket
 	if pusher, ok := cache.socketMap[address]; !ok {
-		pusher = createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, address, 6000), false)
+		pusher = createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, address, 5000), false)
 		cache.socketMap[address] = pusher
+		return pusher
+	} else {
+		return pusher
 	}
-	return pusher
 }
 
 func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) *zmq.Socket {
