@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -63,9 +64,12 @@ func main() {
 		}
 
 		channel := make(chan int)
+		var wg sync.WaitGroup
 
 		go pushAndPull(serverIP, ctx, channel)
-		go sender(serverIP, ctx, channel)
+		wg.Add(1)
+		go sender(&wg, serverIP, ctx, channel)
+		wg.Wait()
 		return
 	}
 
@@ -188,7 +192,8 @@ func pushAndPull(serverIP string, ctx *zmq.Context, channel chan int) {
 	}
 }
 
-func sender(serverIP string, ctx *zmq.Context, channel chan int) {
+func sender(wg *sync.WaitGroup, serverIP string, ctx *zmq.Context, channel chan int) {
+	defer wg.Done()
 	cache := PusherCache{socketMap: make(map[string]*zmq.Socket)}
 	data := make([]byte, 512)
 	rand.Read(data)
