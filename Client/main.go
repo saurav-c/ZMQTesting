@@ -40,6 +40,9 @@ func main() {
 	if mode == "rr" {
 		reqAndRep(serverIP)
 		return
+	} else if mode == "newRR" {
+		newRR(serverIP)
+		return
 	}
 
 	ctx, err := zmq.NewContext()
@@ -110,6 +113,28 @@ func reqAndRep(serverIP string) {
 	rand.Read(data)
 
 	for i := 0; i < 20; i++ {
+		start := time.Now()
+		req.SendBytes(data, zmq.DONTWAIT)
+		req.RecvBytes(0)
+		end := time.Now()
+		fmt.Printf("Round Trip Time: %f ms\n", 1000 * end.Sub(start).Seconds())
+	}
+}
+
+func newRR(serverIP string) {
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Fatalf("Error creating ZMQ context")
+	}
+
+	data := make([]byte, 512)
+	rand.Read(data)
+
+	for i := 0; i < 20; i++ {
+		req, _ := ctx.NewSocket(zmq.REQ)
+		defer req.Close()
+		req.Connect(fmt.Sprintf(PushTemplate, serverIP, 5000))
+
 		start := time.Now()
 		req.SendBytes(data, zmq.DONTWAIT)
 		req.RecvBytes(0)
