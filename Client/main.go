@@ -15,6 +15,19 @@ const (
 	PushTemplate = "tcp://%s:%d"
 )
 
+type PusherCache struct {
+	socketMap map[string]*zmq.Socket
+}
+
+func (cache *PusherCache) getPusher(address string, ctx *zmq.Context) (*zmq.Socket) {
+	var pusher *zmq.Socket
+	if pusher, ok := cache.socketMap[address]; !ok {
+		pusher = createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, address, 6000), false)
+		cache.socketMap[address] = pusher
+	}
+	return pusher
+}
+
 func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) *zmq.Socket {
 	sckt, err := context.NewSocket(tp)
 	if err != nil {
@@ -42,6 +55,17 @@ func main() {
 		return
 	} else if mode == "newRR" {
 		newRR(serverIP)
+		return
+	} else if mode == "pnp" {
+		ctx, err := zmq.NewContext()
+		if err != nil {
+			log.Fatalf("Error creating ZMQ context")
+		}
+
+		channel := make(chan int)
+
+		go pushAndPull(serverIP, ctx, channel)
+		go sender(serverIP, ctx, channel)
 		return
 	}
 
@@ -141,4 +165,43 @@ func newRR(serverIP string) {
 		end := time.Now()
 		fmt.Printf("Round Trip Time: %f ms\n", 1000 * end.Sub(start).Seconds())
 	}
+}
+
+func pushAndPull(serverIP string, ctx *zmq.Context, channel chan int) {
+	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 6000), true)
+	defer puller.Close()
+	poller := zmq.NewPoller()
+	poller.Add(puller, zmq.POLLIN)
+
+	for true {
+		sockets, _ := poller.Poll(0)
+
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+			case puller:
+				{
+					puller.RecvBytes(zmq.DONTWAIT)
+					channel <- 1
+				}
+			}
+		}
+	}
+}
+
+func sender(serverIP string, ctx *zmq.Context, channel chan int) {
+	cache := PusherCache{socketMap: make(map[string]*zmq.Socket)}
+	data := make([]byte, 512)
+	rand.Read(data)
+	for i:=0; i < 20; i++ {
+		pusher := cache.getPusher(serverIP, ctx)
+		start := time.Now()
+		pusher.SendBytes(data, zmq.DONTWAIT)
+
+		<-channel
+
+		end := time.Now()
+		fmt.Printf("Round Trip Time: %f ms\n", 1000 * end.Sub(start).Seconds())
+	}
+	//end := time.Now()
+	//fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
 }

@@ -5,13 +5,25 @@ import (
 	zmq "github.com/pebbe/zmq4"
 	"log"
 	"os"
-	"time"
 )
 
 const (
 	PullTemplate = "tcp://*:%d"
 	PushTemplate = "tcp://%s:%d"
 )
+
+type PusherCache struct {
+	socketMap map[string]*zmq.Socket
+}
+
+func (cache *PusherCache) getPusher(address string, ctx *zmq.Context) (*zmq.Socket) {
+	var pusher *zmq.Socket
+	if pusher, ok := cache.socketMap[address]; !ok {
+		pusher = createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, address, 6000), false)
+		cache.socketMap[address] = pusher
+	}
+	return pusher
+}
 
 func createSocket(tp zmq.Type, context *zmq.Context, address string, bind bool) *zmq.Socket {
 	sckt, err := context.NewSocket(tp)
@@ -51,6 +63,10 @@ func main() {
 		log.Fatalf("Error creating ZMQ context")
 	}
 
+	cache := &PusherCache{
+		socketMap:   make(map[string]*zmq.Socket),
+	}
+
 	puller := createSocket(zmq.PULL, ctx, fmt.Sprintf(PullTemplate, 5000), true)
 	defer puller.Close()
 	poller := zmq.NewPoller()
@@ -64,25 +80,25 @@ func main() {
 			case puller:
 				{
 					data, _ := puller.RecvBytes(zmq.DONTWAIT)
-					go handleData(data, clientIP, ctx)
+					go handleData(data, clientIP, ctx, cache)
 				}
 			}
 		}
 	}
 }
 
-func handleData(data []byte, clientIP string, ctx *zmq.Context) {
-	start := time.Now()
+func handleData(data []byte, clientIP string, ctx *zmq.Context, cache *PusherCache) {
+	//start := time.Now()
 
-	t1 := time.Now()
-	pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
-	t2 := time.Now()
-	fmt.Printf("Socket Creation: %f\n", t2.Sub(t1).Seconds())
-	defer pusher.Close()
-
+	//t1 := time.Now()
+	//	//pusher := createSocket(zmq.PUSH, ctx, fmt.Sprintf(PushTemplate, clientIP, 6000), false)
+	//	//t2 := time.Now()
+	//	//fmt.Printf("Socket Creation: %f\n", t2.Sub(t1).Seconds())
+	//	//defer pusher.Close()
+	pusher := cache.getPusher(clientIP, ctx)
 	pusher.SendBytes(data, zmq.DONTWAIT)
-	end := time.Now()
-	fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
+	//end := time.Now()
+	//fmt.Printf("Total Handler Time: %f\n", end.Sub(start).Seconds())
 }
 
 func persistent(clientIP string) {
